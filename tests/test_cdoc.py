@@ -1556,3 +1556,105 @@ class TestSubtestStepExtraction:
         body = _extract_brace_body(source, source.index("{"))
         assert "bar()" in body
         assert "baz()" in body
+
+
+from mkdocs_cdoc.convert import convert_file
+
+
+def test_convert_file_changes_gtkdoc_comment(tmp_path):
+    """
+    White-box test: covers convert.py lines 22-36.
+    It checks that gtk-doc block comments are converted.
+    """
+    source_file = tmp_path / "sample.c"
+    source_file.write_text(
+        "/**\n"
+        " * test_func:\n"
+        " * @arg: input value\n"
+        " *\n"
+        " * Returns: result value\n"
+        " */\n",
+        encoding="utf-8",
+    )
+
+    changed = convert_file(str(source_file))
+
+    assert changed is True
+    content = source_file.read_text(encoding="utf-8")
+    assert "``arg``" in content
+
+
+def test_convert_file_returns_false_when_no_change(tmp_path):
+    """
+    White-box test: covers convert.py lines 38-39.
+    It checks that files without gtk-doc block comments are not changed.
+    """
+    source_file = tmp_path / "plain.c"
+    original = "int main(void) { return 0; }\n"
+    source_file.write_text(original, encoding="utf-8")
+
+    changed = convert_file(str(source_file))
+
+    assert changed is False
+    assert source_file.read_text(encoding="utf-8") == original
+
+
+def test_convert_file_dry_run_does_not_modify_file(tmp_path):
+    """
+    White-box test: covers convert.py lines 41-42.
+    It checks dry-run behavior.
+    """
+    source_file = tmp_path / "dry.c"
+    original = (
+        "/**\n"
+        " * test_func:\n"
+        " * @arg: input value\n"
+        " */\n"
+    )
+    source_file.write_text(original, encoding="utf-8")
+
+    changed = convert_file(str(source_file), dry_run=True)
+
+    assert changed is True
+    assert source_file.read_text(encoding="utf-8") == original
+
+
+def test_convert_file_creates_backup_when_enabled(tmp_path):
+    """
+    White-box test: covers convert.py lines 44-49.
+    It checks that backup files are created before writing converted output.
+    """
+    source_file = tmp_path / "backup.c"
+    original = (
+        "/**\n"
+        " * test_func:\n"
+        " * @arg: input value\n"
+        " */\n"
+    )
+    source_file.write_text(original, encoding="utf-8")
+
+    changed = convert_file(str(source_file), backup=True)
+
+    assert changed is True
+    backup_file = tmp_path / "backup.c.bak"
+    assert backup_file.exists()
+    assert backup_file.read_text(encoding="utf-8") == original
+
+
+def test_convert_file_preserves_non_gtkdoc_block_comment(tmp_path):
+    """
+    White-box test: covers convert.py lines 27-29.
+    It checks the branch where a block comment does not start with /**.
+    """
+    source_file = tmp_path / "regular.c"
+    original = (
+        "/*\n"
+        " * regular comment\n"
+        " */\n"
+    )
+    source_file.write_text(original, encoding="utf-8")
+
+    changed = convert_file(str(source_file))
+
+    assert changed is False
+    assert source_file.read_text(encoding="utf-8") == original
