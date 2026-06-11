@@ -44,7 +44,7 @@ jobs:
 
       - name: Run tests with coverage
         run: |
-          pytest --cov=mkdocs_cdoc --cov-report=term-missing
+          pytest --cov=mkdocs_cdoc --cov-report=term-missing --cov-fail-under=50
 
       - name: Build documentation
         run: |
